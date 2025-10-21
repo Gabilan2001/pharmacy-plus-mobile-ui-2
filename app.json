@@ -5,7 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "pharmacyplushelp",
+    "scheme": "pharmacy-plus-help",
+    "extra": {
+      "expoPublic": {
+        "API_BASE_URL": "http://localhost:5000/api"
+      }
+    },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
