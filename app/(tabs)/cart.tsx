@@ -161,7 +161,7 @@ export default function CartScreen() {
             <Image source={{ uri: item.medicine.image }} style={styles.itemImage} />
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.medicine.name}</Text>
-              <Text style={styles.itemPrice}>${item.medicine.price.toFixed(2)}</Text>
+              <Text style={styles.itemPrice}>Rs.{item.medicine.price.toFixed(2)}</Text>
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
                   style={styles.quantityButton}
@@ -219,17 +219,17 @@ export default function CartScreen() {
         <View style={styles.totalSection}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>${getCartTotal().toFixed(2)}</Text>
+            <Text style={styles.totalValue}>Rs.{getCartTotal().toFixed(2)}</Text>
           </View>
           {appliedCoupon && (
             <View style={styles.totalRow}>
               <Text style={styles.discountLabel}>Discount</Text>
-              <Text style={styles.discountValue}>-${getDiscountAmount().toFixed(2)}</Text>
+              <Text style={styles.discountValue}>-Rs.{getDiscountAmount().toFixed(2)}</Text>
             </View>
           )}
           <View style={[styles.totalRow, styles.finalTotal]}>
             <Text style={styles.finalTotalLabel}>Total</Text>
-            <Text style={styles.finalTotalValue}>${getFinalTotal().toFixed(2)}</Text>
+            <Text style={styles.finalTotalValue}>Rs.{getFinalTotal().toFixed(2)}</Text>
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -283,7 +283,7 @@ export default function CartScreen() {
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.finalTotalValue}>${getFinalTotal().toFixed(2)}</Text>
+                <Text style={styles.finalTotalValue}>Rs.{getFinalTotal().toFixed(2)}</Text>
               </View>
             </View>
             <View style={styles.modalButtonContainer}>

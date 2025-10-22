@@ -133,7 +133,7 @@ export default function OrdersScreen() {
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemMeta}>x{item.quantity}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>Rs.{item.price.toFixed(2)}</Text>
                 </View>
               );
             })}
@@ -149,7 +149,7 @@ export default function OrdersScreen() {
             </View>
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${order.totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>Rs.{order.totalAmount.toFixed(2)}</Text>
             </View>
           </View>
 

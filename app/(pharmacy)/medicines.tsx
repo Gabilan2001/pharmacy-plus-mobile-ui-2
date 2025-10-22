@@ -1,12 +1,12 @@
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Medicine } from '@/types';
-import { DollarSign, Edit, Image as ImageIcon, Package, Plus, Trash2, ChevronDown } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, Pressable } from 'react-native';
-import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import { Calendar, ChevronDown, DollarSign, Edit, Image as ImageIcon, Package, Plus, Trash2 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Medicines() {
   const { currentUser, apiRequest, token } = useAuth();
@@ -27,6 +27,9 @@ export default function Medicines() {
     price: '',
     stock: '',
     category: '',
+    expiryDate: '',
+    storageInstructions: '',
+    manufacturer: '',
   });
   const [editImageUri, setEditImageUri] = useState<string>('');
   const [newMedicine, setNewMedicine] = useState({
@@ -35,10 +38,35 @@ export default function Medicines() {
     price: '',
     stock: '',
     category: '',
+    expiryDate: '',
+    storageInstructions: '',
+    manufacturer: '',
   });
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  //dropdown category list + picker state
+  const CATEGORIES = [
+    'General',
+    'OTC',
+    'Antibiotic',
+    'Analgesic',
+    'Antihistamine',
+    'Vitamins',
+    'Dermatology',
+    'Cardiology',
+    'Diabetes',
+    'Respiratory',
+    'Gastro',
+    'Other',
+  ];
+  const [showCategoryDropdownAdd, setShowCategoryDropdownAdd] = useState(false);
+  const [showCategoryDropdownEdit, setShowCategoryDropdownEdit] = useState(false);
+  const [showExpiryPickerAdd, setShowExpiryPickerAdd] = useState(false);
+  const [showExpiryPickerEdit, setShowExpiryPickerEdit] = useState(false);
+
+  const toYMD = (d: Date) => d.toISOString().slice(0, 10);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -88,6 +116,12 @@ export default function Medicines() {
     }
   };
 
+  const formatDate = (d?: string | Date) => {
+    if (!d) return '-';
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? String(d) : dt.toISOString().slice(0, 10);
+  };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -127,7 +161,7 @@ export default function Medicines() {
   };
 
   const handleAddMedicine = async () => {
-    if (!newMedicine.name || !newMedicine.price || !newMedicine.stock) {
+    if (!newMedicine.name || !newMedicine.price || !newMedicine.stock || !newMedicine.expiryDate ||!newMedicine.manufacturer) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -151,6 +185,11 @@ export default function Medicines() {
       formData.append('price', newMedicine.price);
       formData.append('stock', newMedicine.stock);
       formData.append('category', newMedicine.category || 'General');
+      formData.append('expiryDate', newMedicine.expiryDate);
+      if (newMedicine.storageInstructions)
+        formData.append('storageInstructions', newMedicine.storageInstructions);
+      formData.append('manufacturer', newMedicine.manufacturer);
+
       const pid = selectedPharmacy.id || selectedPharmacy._id;
       if (!pid) {
         Alert.alert('Error', 'Unable to determine selected pharmacy id');
@@ -189,7 +228,7 @@ export default function Medicines() {
       }
 
       await fetchMedicines();
-      setNewMedicine({ name: '', description: '', price: '', stock: '', category: '' });
+      setNewMedicine({ name: '', description: '', price: '', stock: '', category: '',expiryDate: '',storageInstructions: '',manufacturer: '', });
       setImageUri('');
       setShowAddForm(false);
       Alert.alert('Success', 'Medicine added successfully!');
@@ -230,6 +269,9 @@ export default function Medicines() {
       price: medicine?.price !== undefined && medicine?.price !== null ? String(medicine.price) : '',
       stock: medicine?.stock !== undefined && medicine?.stock !== null ? String(medicine.stock) : '',
       category: medicine?.category || '',
+      expiryDate: medicine?.expiryDate ? String(medicine.expiryDate).slice(0, 10) : '',
+      storageInstructions: medicine?.storageInstructions || '',
+      manufacturer: medicine?.manufacturer || '',
     });
     setEditImageUri('');
     setEditModalVisible(true);
@@ -237,7 +279,7 @@ export default function Medicines() {
 
   const handleUpdateMedicine = async () => {
     if (!editMedicine) return;
-    if (!editFields.name || !editFields.price || !editFields.stock) {
+    if (!editFields.name || !editFields.price || !editFields.stock || !editFields.expiryDate || !editFields.manufacturer) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -250,6 +292,10 @@ export default function Medicines() {
       formData.append('price', editFields.price);
       formData.append('stock', editFields.stock);
       formData.append('category', editFields.category || 'General');
+      formData.append('expiryDate', editFields.expiryDate);
+      if (editFields.storageInstructions)
+        formData.append('storageInstructions', editFields.storageInstructions);
+      formData.append('manufacturer', editFields.manufacturer);
 
       if (editImageUri) {
         const filename = editImageUri.split('/').pop() || 'medicine.jpg';
@@ -377,11 +423,59 @@ export default function Medicines() {
               onChangeText={(text) => setNewMedicine({ ...newMedicine, stock: text })}
               keyboardType="number-pad"
             />
+            {/* Category (Dropdown) */}
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setShowCategoryDropdownAdd(true)}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: newMedicine.category ? colors.text : colors.textSecondary }}>
+                  {newMedicine.category || 'Category (select)'}
+                </Text>
+                <ChevronDown size={18} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+
             <TextInput
               style={styles.input}
-              placeholder="Category"
-              value={newMedicine.category}
-              onChangeText={(text) => setNewMedicine({ ...newMedicine, category: text })}
+              placeholder="Manufacturer *"
+              value={newMedicine.manufacturer}
+              onChangeText={(text) => setNewMedicine({ ...newMedicine, manufacturer: text })}
+            />
+
+            {/* Expiry Date (Calendar) */}
+            <TouchableOpacity
+              style={[styles.input, !newMedicine.expiryDate && { borderColor: '#fca5a5' }]}
+              onPress={() => setShowExpiryPickerAdd(true)}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: newMedicine.expiryDate ? colors.text : colors.textSecondary }}>
+                  {newMedicine.expiryDate ? newMedicine.expiryDate : 'Expiry Date *'}
+                </Text>
+                <Calendar size={18} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+
+            {showExpiryPickerAdd && (
+              <DateTimePicker
+                value={newMedicine.expiryDate ? new Date(newMedicine.expiryDate) : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                onChange={(event, selectedDate) => {
+                  if (Platform.OS === 'android') setShowExpiryPickerAdd(false);
+                  if (selectedDate) {
+                    setNewMedicine({ ...newMedicine, expiryDate: toYMD(selectedDate) });
+                  }
+                }}
+              />
+            )}
+
+            <TextInput
+              style={[styles.input, { minHeight: 80 }]}
+              placeholder="Storage Instructions"
+              value={newMedicine.storageInstructions}
+              onChangeText={(text) => setNewMedicine({ ...newMedicine, storageInstructions: text })}
+              multiline
             />
             <View style={styles.formActions}>
               <TouchableOpacity
@@ -440,17 +534,49 @@ export default function Medicines() {
                 <View style={styles.medicineDetails}>
                   <View style={styles.detailItem}>
                     <DollarSign size={16} color={colors.primary} />
-                    <Text style={styles.detailText}>${Number(medicine.price).toFixed(2)}</Text>
+                    <Text style={styles.detailText}>Rs.{Number(medicine.price).toFixed(2)}</Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Package size={16} color={colors.textSecondary} />
                     <Text style={styles.detailText}>Stock: {medicine.stock}</Text>
                   </View>
                 </View>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{medicine.category}</Text>
+                <View style={styles.medicineDetails}>
+                  <View style={styles.detailItem}>
+                    <Calendar size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>Expires: {formatDate(medicine.expiryDate)}</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.categoryBadge,
+                      medicine.isExpired
+                        ? styles.expiredBadge
+                        : medicine.isNearExpiry
+                        ? styles.nearExpiryBadge
+                        : null,
+                    ]}
+                  >
+                    <Text style={styles.categoryText}>
+                      {medicine.isExpired
+                        ? 'Expired'
+                        : medicine.isNearExpiry
+                        ? 'Near Expiry'
+                        : medicine.category}
+                    </Text>
+                  </View>
                 </View>
+                {medicine.manufacturer ? (
+                  <Text style={[styles.medicineDescription, { marginTop: -4 }]}>
+                    By {medicine.manufacturer}
+                  </Text>
+                ) : null}
+                {medicine.storageInstructions ? (
+                  <Text style={[styles.medicineDescription]} numberOfLines={2}>
+                    Storage: {medicine.storageInstructions}
+                  </Text>
+                ) : null}
               </View>
+
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.actionButton}
@@ -559,12 +685,63 @@ export default function Medicines() {
                 onChangeText={(text) => setEditFields({ ...editFields, stock: text })}
                 keyboardType="number-pad"
               />
+              {/* Category (Dropdown) */}
+              <TouchableOpacity
+                style={styles.input}
+                onPress={() => setShowCategoryDropdownEdit(true)}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: editFields.category ? colors.text : colors.textSecondary }}>
+                    {editFields.category || 'Category (select)'}
+                  </Text>
+                  <ChevronDown size={18} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+
               <TextInput
                 style={styles.input}
-                placeholder="Category"
-                value={editFields.category}
-                onChangeText={(text) => setEditFields({ ...editFields, category: text })}
+                placeholder="Manufacturer *"
+                value={editFields.manufacturer}
+                onChangeText={(text) => setEditFields({ ...editFields, manufacturer: text })}
               />
+
+              {/* Expiry Date (Calendar) */}
+              <TouchableOpacity
+                style={[styles.input, !editFields.expiryDate && { borderColor: '#fca5a5' }]}
+                onPress={() => setShowExpiryPickerEdit(true)}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: editFields.expiryDate ? colors.text : colors.textSecondary }}>
+                    {editFields.expiryDate ? editFields.expiryDate : 'Expiry Date *'}
+                  </Text>
+                  <Calendar size={18} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+
+              {showExpiryPickerEdit && (
+                <DateTimePicker
+                  value={editFields.expiryDate ? new Date(editFields.expiryDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') setShowExpiryPickerEdit(false);
+                    if (selectedDate) {
+                      setEditFields({ ...editFields, expiryDate: toYMD(selectedDate) });
+                    }
+                  }}
+                />
+              )}
+
+              <TextInput
+                style={[styles.input, { minHeight: 80 }]}
+                placeholder="Storage Instructions"
+                value={editFields.storageInstructions}
+                onChangeText={(text) =>
+                  setEditFields({ ...editFields, storageInstructions: text })
+                }
+                multiline
+              />
+
               <View style={styles.formActions}>
                 <TouchableOpacity
                   style={styles.cancelButton}
@@ -632,9 +809,88 @@ export default function Medicines() {
           </View>
         </View>
       </Modal>
+
+      {/* Category Dropdown - Add */}
+      <Modal
+        visible={showCategoryDropdownAdd}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowCategoryDropdownAdd(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCategoryDropdownAdd(false)} />
+          <View style={styles.dropdownModal}>
+            <Text style={styles.dropdownTitle}>Select Category</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.dropdownItem,
+                    newMedicine.category === cat && styles.dropdownItemSelected,
+                  ]}
+                  onPress={() => {
+                    setNewMedicine({ ...newMedicine, category: cat });
+                    setShowCategoryDropdownAdd(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      newMedicine.category === cat && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Category Dropdown - Edit */}
+      <Modal
+        visible={showCategoryDropdownEdit}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowCategoryDropdownEdit(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCategoryDropdownEdit(false)} />
+          <View style={styles.dropdownModal}>
+            <Text style={styles.dropdownTitle}>Select Category</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.dropdownItem,
+                    editFields.category === cat && styles.dropdownItemSelected,
+                  ]}
+                  onPress={() => {
+                    setEditFields({ ...editFields, category: cat });
+                    setShowCategoryDropdownEdit(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      editFields.category === cat && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -794,6 +1050,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
+  },
+  nearExpiryBadge: {
+    backgroundColor: '#FFF4E5',
+  },
+  expiredBadge: {
+    backgroundColor: '#FFE5E5',
   },
   categoryText: {
     fontSize: 11,

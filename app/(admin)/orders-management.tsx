@@ -141,7 +141,7 @@ export default function OrdersManagement() {
                 </View>
                 <View style={styles.detailRow}>
                   <DollarSign size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>${order.totalAmount.toFixed(2)}</Text>
+                  <Text style={styles.detailText}>Rs.{order.totalAmount.toFixed(2)}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Clock size={16} color={colors.textSecondary} />
