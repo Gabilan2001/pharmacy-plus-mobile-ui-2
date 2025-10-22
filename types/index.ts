@@ -41,6 +41,9 @@ export type Medicine = {
   expiryDate?: string;
   isNearExpiry?: boolean;
   isExpired?: boolean;
+  isDiscounted?: boolean;
+  discountedPrice?: number;
+  discountPercentage?: number;
   _id?: string;
 };
 
