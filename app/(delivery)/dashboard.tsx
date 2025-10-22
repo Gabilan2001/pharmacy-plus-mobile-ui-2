@@ -105,7 +105,7 @@ export default function DeliveryDashboard() {
                     <Truck size={18} color={colors.primary} />
                     <Text style={styles.activeOrderId}>#{String(order.id).slice(-6).toUpperCase()}</Text>
                   </View>
-                  <Text style={styles.activeAmount}>${order.totalAmount.toFixed(2)}</Text>
+                  <Text style={styles.activeAmount}>Rs.{order.totalAmount.toFixed(2)}</Text>
                 </View>
                 <Text style={styles.activePharmacy}>
                   {typeof (order as any).pharmacyId === 'object' ? (order as any).pharmacyId.name : 'Pharmacy'}

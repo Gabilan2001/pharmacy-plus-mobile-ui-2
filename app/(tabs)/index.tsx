@@ -100,7 +100,7 @@ export default function HomeScreen() {
                     {item.name}
                   </Text>
                   <Text style={styles.medicineCategory}>{item.category}</Text>
-                  <Text style={styles.medicinePrice}>${Number(item.price).toFixed(2)}</Text>
+                  <Text style={styles.medicinePrice}>Rs.{Number(item.price).toFixed(2)}</Text>
                   {(() => {
                     const medId = String(item.id || item._id);
                     const found = cartItems.find((ci) => String((ci.medicine as any).id || (ci.medicine as any)._id) === medId);
@@ -251,7 +251,7 @@ export default function HomeScreen() {
                   </View>
                   <Text style={styles.deliveryCustomer}>Customer: {customer?.name}</Text>
                   <Text style={styles.deliveryAddress}>{order.deliveryAddress}</Text>
-                  <Text style={styles.deliveryAmount}>${order.totalAmount.toFixed(2)}</Text>
+                  <Text style={styles.deliveryAmount}>Rs.{order.totalAmount.toFixed(2)}</Text>
                 </View>
               );
             })}
