@@ -12,7 +12,7 @@ export default function PharmacyProfile() {
 
   const handleLogout = () => {
     logout();
-    router.replace('/login');
+    //router.replace('/login');
   };
 
   return (

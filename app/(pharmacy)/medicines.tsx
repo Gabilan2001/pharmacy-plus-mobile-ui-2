@@ -65,8 +65,22 @@ export default function Medicines() {
   const [showCategoryDropdownEdit, setShowCategoryDropdownEdit] = useState(false);
   const [showExpiryPickerAdd, setShowExpiryPickerAdd] = useState(false);
   const [showExpiryPickerEdit, setShowExpiryPickerEdit] = useState(false);
+  // discount UI state
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [discountTarget, setDiscountTarget] = useState<any>(null);
+  const [discountPct, setDiscountPct] = useState<string>('');
+  const [discountSaving, setDiscountSaving] = useState(false);
 
   const toYMD = (d: Date) => d.toISOString().slice(0, 10);
+  const toNumber = (v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const effectivePrice = (m: any) => {
+    if (m?.isDiscounted && m?.discountedPrice != null) return toNumber(m.discountedPrice);
+    return toNumber(m.price);
+  };
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -121,6 +135,49 @@ export default function Medicines() {
     const dt = new Date(d);
     return isNaN(dt.getTime()) ? String(d) : dt.toISOString().slice(0, 10);
   };
+
+  const openDiscountModal = (medicine: any) => {
+    setDiscountTarget(medicine);
+    setDiscountPct(medicine?.discountPercentage ? String(medicine.discountPercentage) : '');
+    setShowDiscountModal(true);
+  };
+
+  const applyDiscountApi = async () => {
+    if (!discountTarget) return;
+    const pct = Number(discountPct);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      Alert.alert('Invalid', 'Enter a discount between 0 and 100.');
+      return;
+    }
+
+    try {
+      setDiscountSaving(true);
+      const id = discountTarget._id || discountTarget.id;
+      await apiRequest('PUT', `/medicines/${id}/discount`, { discountPercentage: pct });
+      setShowDiscountModal(false);
+      setDiscountTarget(null);
+      setDiscountPct('');
+      await fetchMedicines(); // refresh list
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to apply discount');
+    } finally {
+      setDiscountSaving(false);
+    }
+  };
+
+const removeDiscountApi = async (medicine: any) => {
+  try {
+    setDiscountSaving(true);
+    const id = medicine._id || medicine.id;
+    await apiRequest('PUT', `/medicines/${id}/discount/remove`, {});
+    await fetchMedicines();
+  } catch (e: any) {
+    Alert.alert('Error', e?.message || 'Failed to remove discount');
+  } finally {
+    setDiscountSaving(false);
+  }
+};
+
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -531,11 +588,31 @@ export default function Medicines() {
                 <Text style={styles.medicineDescription} numberOfLines={2}>
                   {medicine.description}
                 </Text>
+
+                {/* new price model with discount start */}
                 <View style={styles.medicineDetails}>
                   <View style={styles.detailItem}>
                     <DollarSign size={16} color={colors.primary} />
-                    <Text style={styles.detailText}>Rs.{Number(medicine.price).toFixed(2)}</Text>
+                    {medicine.isDiscounted && medicine.discountedPrice != null ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.detailText, { textDecorationLine: 'line-through', opacity: 0.6 }]}>
+                          Rs.{Number(medicine.price).toFixed(2)}
+                        </Text>
+                        <Text style={[styles.detailText, { fontWeight: '800' as const }]}>
+                          Rs.{effectivePrice(medicine).toFixed(2)}
+                        </Text>
+                        {typeof medicine.discountPercentage === 'number' && (
+                          <Text style={{ fontSize: 11, color: colors.primary }}>
+                            (-{medicine.discountPercentage}%)
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Text style={styles.detailText}>Rs.{effectivePrice(medicine).toFixed(2)}</Text>
+                    )}
                   </View>
+                  {/* new price model with discount end */}
+
                   <View style={styles.detailItem}>
                     <Package size={16} color={colors.textSecondary} />
                     <Text style={styles.detailText}>Stock: {medicine.stock}</Text>
@@ -590,6 +667,33 @@ export default function Medicines() {
                 >
                   <Trash2 size={18} color="#FF6B6B" />
                 </TouchableOpacity>
+
+                {/* Set Discount (show only if near-expiry and not expired, or let owners set anytime—your call) */}
+                {!medicine.isExpired && medicine.isNearExpiry && !medicine.isDiscounted && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => openDiscountModal(medicine)}
+                  disabled={discountSaving}
+                >
+                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' as const }}>
+                    %Off
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Remove Discount */}
+              {medicine.isDiscounted && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => removeDiscountApi(medicine)}
+                  disabled={discountSaving}
+                >
+                  <Text style={{ fontSize: 11, color: '#FF6B6B', fontWeight: '700' as const }}>
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+              )}
+
               </View>
             </View>
           ))
@@ -887,6 +991,51 @@ export default function Medicines() {
           </View>
         </View>
       </Modal>
+      
+      {/* new Discount Modal */}
+      <Modal
+        visible={showDiscountModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDiscountModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDiscountModal(false)} />
+          <View style={styles.dropdownModal}>
+            <Text style={styles.dropdownTitle}>
+              Set Discount {discountTarget ? `for "${discountTarget.name}"` : ''}
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Discount % (0 - 100)"
+              value={discountPct}
+              onChangeText={setDiscountPct}
+              keyboardType="numeric"
+            />
+            <View style={styles.formActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowDiscountModal(false)}
+                disabled={discountSaving}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={applyDiscountApi}
+                disabled={discountSaving}
+              >
+                {discountSaving ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.saveButtonText}>Apply</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
